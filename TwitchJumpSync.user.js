@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         TwitchJumpSync Hybrid
+// @name         TwitchJump Hybrid
 // @namespace    http://tampermonkey.net/
 // @version      5.0
 // @description  Mode LocalStorage par défaut + Option Sync Firebase (vv4 stable)
