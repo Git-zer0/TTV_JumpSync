@@ -3,8 +3,6 @@ Jump to precise moments in VODs and save your favorite highlights with the MARK 
 
 ### 📸 Aperçu de l'application
 
-![Démonstration de TwitchJump](dem.mp4)
-
 | | | |
 | :---: | :---: | :---: |
 | ![Capture 1](1.jpg) | ![Capture 2](2.jpg) | ![Capture 3](3.jpg) |
