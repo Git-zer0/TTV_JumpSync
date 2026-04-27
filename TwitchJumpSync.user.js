@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         TwitchJumpSync Force Invite
+// @name         Twitch Sync Multi-Device Config Edition
 // @namespace    http://tampermonkey.net/
-// @version      10.0
-// @description  Version corrigée complète Twitch stable
+// @version      3.0
+// @description  vv4 complet + config Firebase + mode local
 // @author       User
 // @match        https://www.twitch.tv/*
 // @match        https://m.twitch.tv/*
@@ -16,52 +16,22 @@
 
 const CFG_KEY = 'tw_sync_fb_config';
 const MODE_KEY = 'tw_mode_selected';
-const LOCAL_DATA_KEY = 'tw_sync_local_data';
-const POS_KEY = 'tw_sync_box_pos';
+const LOCAL_KEY = 'tw_sync_local_data';
+const POS_KEY = 'tw_sync_pos';
 const sT = 'tw_sync_data';
 
 let firebaseConfig = JSON.parse(localStorage.getItem(CFG_KEY)) || null;
 let modeSelected = localStorage.getItem(MODE_KEY);
 
-let sV = [];
 let db = null;
-let render = () => {};
+let sV = [];
 
-function video() {
-    return document.querySelector('video');
-}
-
-function formatTime(sec) {
-    try {
-        return new Date(sec * 1000).toISOString().substr(11, 8);
-    } catch (e) {
-        return '00:00:00';
-    }
-}
-
-function parseTime(txt) {
-    const p = txt.trim().split(':').map(Number);
-    let sec = 0;
-
-    if (p.length === 3) sec = p[0] * 3600 + p[1] * 60 + p[2];
-    else if (p.length === 2) sec = p[0] * 60 + p[1];
-    else if (p.length === 1) sec = p[0];
-
-    return isNaN(sec) ? 0 : sec;
-}
-
-function save() {
-    if (db && modeSelected === 'sync') {
-        db.ref(sT).set(sV);
-    } else {
-        localStorage.setItem(LOCAL_DATA_KEY, JSON.stringify(sV));
-        render();
-    }
-}
+// =======================
+// CONFIG WINDOW
+// =======================
 
 function showConfigModal() {
     if (document.getElementById('cfg-modal')) return;
-    if (!document.body) return;
 
     const modal = document.createElement('div');
     modal.id = 'cfg-modal';
@@ -75,7 +45,7 @@ function showConfigModal() {
         padding:25px;
         border:2px solid #9147ff;
         border-radius:12px;
-        z-index:1000000010;
+        z-index:2147483647;
         color:white;
         font-family:sans-serif;
         width:320px;
@@ -86,10 +56,7 @@ function showConfigModal() {
     `;
 
     modal.innerHTML = `
-        <h3 style="color:#9147ff;margin:0;text-align:center">TwitchJumpSync</h3>
-        <p style="font-size:12px;text-align:center;color:#adadb8">
-        Choisissez votre mode d'utilisation :
-        </p>
+        <h3 style="margin:0;text-align:center;color:#9147ff">Twitch Sync</h3>
 
         <input id="f_api" placeholder="Firebase API Key"
         style="background:#000;color:#fff;border:1px solid #333;padding:10px;border-radius:4px"
@@ -108,13 +75,13 @@ function showConfigModal() {
         value="${firebaseConfig?.appId || ''}">
 
         <button id="f_save"
-        style="background:#9147ff;color:#fff;border:none;padding:14px;cursor:pointer;font-weight:bold;border-radius:6px;margin-top:10px">
-        CONNEXION FIREBASE (SYNC)
+        style="background:#9147ff;color:#fff;border:none;padding:12px;border-radius:6px;font-weight:bold;cursor:pointer">
+        CONNEXION FIREBASE
         </button>
 
         <button id="f_local"
-        style="background:#222;color:#fff;border:1px solid #444;padding:12px;cursor:pointer;font-weight:bold;border-radius:6px">
-        MODE HORS LIGNE (LOCAL)
+        style="background:#222;color:#fff;border:1px solid #444;padding:12px;border-radius:6px;font-weight:bold;cursor:pointer">
+        MODE HORS LIGNE
         </button>
     `;
 
@@ -128,10 +95,7 @@ function showConfigModal() {
             appId: document.getElementById('f_aid').value.trim()
         };
 
-        if (!cfg.apiKey) {
-            alert('API Key requise');
-            return;
-        }
+        if (!cfg.apiKey) return alert('API Key requise');
 
         localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
         localStorage.setItem(MODE_KEY, 'sync');
@@ -144,241 +108,293 @@ function showConfigModal() {
     };
 }
 
-function loadData() {
-    const isLocal = modeSelected === 'local';
+// =======================
+// START CHECK
+// =======================
 
-    if (!isLocal && firebaseConfig) {
-        try {
-            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+if (!modeSelected) {
+    window.addEventListener('load', () => setTimeout(showConfigModal, 1500));
+    return;
+}
 
-            db = firebase.database();
+// =======================
+// DATA LOAD
+// =======================
 
-            db.ref(sT).on('value', snap => {
-                sV = Array.isArray(snap.val()) ? snap.val() : [];
-                render();
-            });
+if (modeSelected === 'sync' && firebaseConfig) {
+    try {
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        db = firebase.database();
 
-        } catch (e) {
-            console.error('Firebase error', e);
-            sV = JSON.parse(localStorage.getItem(LOCAL_DATA_KEY)) || [];
-        }
+        db.ref(sT).on('value', snap => {
+            sV = Array.isArray(snap.val()) ? snap.val() : [];
+            if (typeof render === 'function') render();
+        });
+
+    } catch (e) {
+        sV = JSON.parse(localStorage.getItem(LOCAL_KEY)) || [];
+    }
+} else {
+    sV = JSON.parse(localStorage.getItem(LOCAL_KEY)) || [];
+}
+
+function save() {
+    if (db && modeSelected === 'sync') {
+        db.ref(sT).set(sV);
     } else {
-        sV = JSON.parse(localStorage.getItem(LOCAL_DATA_KEY)) || [];
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(sV));
+        render();
     }
 }
+
+// =======================
+// MAIN APP vv4
+// =======================
+
+(function() {
+
+const style = document.createElement('style');
+style.innerHTML = `
+#i::selection { background:#0078d7 !important;color:#fff !important; }
+#i { caret-color:#0078d7 !important; outline:none !important; }
+#twj{
+transition:height .2s,width .2s;
+box-shadow:0 0 15px rgba(0,0,0,.4);
+overflow:hidden;
+z-index:999999999 !important;
+}
+.minimized{width:230px !important;height:105px !important;}
+.minimized>*:not(#h):not(#min-controls):not(#min):not(#x){display:none !important;}
+.min-btn-style{
+background:#e91e63;color:#fff;border:none;border-radius:4px;
+padding:0 10px;height:32px;font-size:10px;font-weight:bold;
+cursor:pointer;
+}
+#min-mk10{background:#c2185b;}
+.jump{cursor:pointer;}
+`;
+document.head.appendChild(style);
 
 function init() {
-    if (!document.body) return;
-    if (document.getElementById('twj')) return;
+if (document.getElementById('twj')) return;
 
-    const d = document.createElement('div');
-    d.id = 'twj';
+const isPC = matchMedia('(pointer:fine)').matches;
+let myDevice = isPC ? 'PC' : 'TAB';
+let viewTab = myDevice;
 
-    d.style = `
-        position:fixed;
-        top:100px;
-        left:10px;
-        background:#18181b;
-        padding:12px;
-        border:2px solid #9147ff;
-        border-radius:12px;
-        width:260px;
-        color:#fff;
-        font-family:sans-serif;
-        z-index:999999999;
-        display:flex;
-        flex-direction:column;
-        gap:10px;
-    `;
+const v = () => document.querySelector('video');
 
-    const savedPos = JSON.parse(localStorage.getItem(POS_KEY) || 'null');
+const f = s => {
+try { return new Date(s * 1000).toISOString().substr(11,8); }
+catch(e){ return "00:00:00"; }
+};
 
-    if (savedPos) {
-        d.style.left = savedPos.left;
-        d.style.top = savedPos.top;
-    }
+const restoreBtn = document.createElement('div');
+restoreBtn.id='twj-restore';
+restoreBtn.innerHTML='T';
+restoreBtn.style='position:fixed;top:5px;left:5px;z-index:2147483647;background:#9147ff;color:#fff;width:30px;height:30px;border-radius:50%;display:none;justify-content:center;align-items:center;cursor:pointer;font-weight:bold';
 
-    d.innerHTML = `
-        <div id="h"
-        style="width:100%;height:25px;background:#333;border-radius:4px;cursor:move;display:flex;justify-content:center;align-items:center;font-size:10px;user-select:none">
-        DRAG | ${modeSelected.toUpperCase()}
-        </div>
+const d = document.createElement('div');
+d.id='twj';
+d.style='position:fixed;top:100px;left:10px;background:#18181b;padding:12px;border:2px solid #9147ff;border-radius:12px;width:260px;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;gap:10px;resize:both;max-width:95vw;max-height:85vh';
 
-        <input id="i" type="tel"
-        style="width:100%;background:#000;color:#fff;border:1px solid #333;padding:8px 5px;font-size:1.4em;text-align:center;border-radius:5px;font-family:monospace;">
-
-        <div id="g"
-        style="color:#9147ff;font-weight:bold;text-align:center;cursor:pointer;padding:8px;background:#000;border-radius:4px">
-        JUMP
-        </div>
-
-        <div style="display:flex;justify-content:space-between;font-size:0.7em;font-weight:bold;padding-top:5px;border-top:1px solid #333">
-            <div id="mk" style="color:#e91e63;cursor:pointer">MARK</div>
-            <div id="ls" style="cursor:pointer">LISTE</div>
-            <div id="cfg_gear" style="color:#9147ff;cursor:pointer">⚙️</div>
-        </div>
-
-        <div id="l"
-        style="display:none;background:#000;border:1px solid #333;max-height:200px;overflow-y:auto"></div>
-    `;
-
-    document.body.appendChild(d);
-
-    const H = d.querySelector('#h');
-    const I = d.querySelector('#i');
-    const G = d.querySelector('#g');
-    const MK = d.querySelector('#mk');
-    const LS = d.querySelector('#ls');
-    const CFG = d.querySelector('#cfg_gear');
-    const L = d.querySelector('#l');
-
-    render = () => {
-        L.innerHTML = '';
-
-        sV.slice().reverse().forEach(it => {
-            const row = document.createElement('div');
-
-            row.style = `
-                display:flex;
-                justify-content:space-between;
-                padding:5px;
-                border-bottom:1px solid #222;
-                font-size:11px;
-            `;
-
-            row.innerHTML = `
-                <span class="jump-it"
-                style="color:#9147ff;cursor:pointer">${it.n}</span>
-
-                <button class="del"
-                style="background:red;color:white;border:none;font-size:8px">X</button>
-            `;
-
-            row.querySelector('.jump-it').onclick = () => {
-                if (video()) video().currentTime = it.t;
-            };
-
-            row.querySelector('.del').onclick = () => {
-                sV = sV.filter(x => x !== it);
-                save();
-            };
-
-            L.appendChild(row);
-        });
-    };
-
-    G.onclick = () => {
-        if (!video()) return;
-        video().currentTime = parseTime(I.value);
-    };
-
-    MK.onclick = () => {
-        if (!video()) return;
-
-        const t = Math.floor(video().currentTime);
-
-        sV.push({
-            n: formatTime(t),
-            t: t
-        });
-
-        save();
-    };
-
-    LS.onclick = () => {
-        L.style.display = L.style.display === 'none' ? 'block' : 'none';
-        render();
-    };
-
-    CFG.onclick = () => {
-        if (confirm("Réinitialiser les paramètres pour revoir l'invitation ?")) {
-            localStorage.removeItem(MODE_KEY);
-            location.reload();
-        }
-    };
-
-    let drag = false;
-    let ox = 0;
-    let oy = 0;
-
-    function savePos() {
-        localStorage.setItem(POS_KEY, JSON.stringify({
-            left: d.style.left,
-            top: d.style.top
-        }));
-    }
-
-    H.onmousedown = e => {
-        drag = true;
-        ox = e.clientX - d.offsetLeft;
-        oy = e.clientY - d.offsetTop;
-    };
-
-    window.addEventListener('mousemove', e => {
-        if (!drag) return;
-
-        d.style.left = (e.clientX - ox) + 'px';
-        d.style.top = (e.clientY - oy) + 'px';
-    });
-
-    window.addEventListener('mouseup', () => {
-        if (drag) savePos();
-        drag = false;
-    });
-
-    H.addEventListener('touchstart', e => {
-        const t = e.touches[0];
-        drag = true;
-        ox = t.clientX - d.offsetLeft;
-        oy = t.clientY - d.offsetTop;
-    }, { passive: true });
-
-    window.addEventListener('touchmove', e => {
-        if (!drag) return;
-
-        const t = e.touches[0];
-
-        d.style.left = (t.clientX - ox) + 'px';
-        d.style.top = (t.clientY - oy) + 'px';
-    }, { passive: true });
-
-    window.addEventListener('touchend', () => {
-        if (drag) savePos();
-        drag = false;
-    });
-
-    setInterval(() => {
-        const v = video();
-
-        if (v && !v.paused && document.activeElement !== I) {
-            I.value = formatTime(Math.floor(v.currentTime));
-        }
-    }, 1000);
-
-    render();
+const pos = JSON.parse(localStorage.getItem(POS_KEY) || 'null');
+if (pos) {
+d.style.left = pos.left;
+d.style.top = pos.top;
 }
 
-function ensureApp() {
-    if (!modeSelected) return;
+d.innerHTML = `
+<div id="h" style="width:100%;height:25px;background:#333;border-radius:4px;cursor:move;display:flex;justify-content:center;align-items:center;font-size:10px">DRAG (${myDevice})</div>
 
-    if (!document.getElementById('twj')) {
-        init();
-    }
+<button id="min" style="position:absolute;top:5px;left:8px;background:none;border:none;color:#fff;font-size:16px;cursor:pointer">-</button>
+<button id="x" style="position:absolute;top:5px;right:8px;background:none;border:none;color:#f44;cursor:pointer">X</button>
+
+<div id="min-controls" style="display:none;justify-content:center;gap:15px;margin-top:10px">
+<button id="min-mk" class="min-btn-style">MARK</button>
+<button id="min-mk10" class="min-btn-style">MARK -10s</button>
+</div>
+
+<input id="i" type="tel"
+style="width:100%;background:#000;color:#fff;border:1px solid #333;padding:8px 5px;font-size:1.4em;text-align:center;border-radius:5px;font-family:monospace">
+
+<div id="g" style="color:#9147ff;font-weight:bold;text-align:center;cursor:pointer;padding:8px;background:#000;border-radius:4px">JUMP</div>
+
+<div style="display:flex;gap:20px;justify-content:center;font-size:.85em;font-weight:bold">
+<div id="m10" style="cursor:pointer">-10s</div>
+<div id="m5" style="cursor:pointer">-5s</div>
+<div id="p5" style="cursor:pointer">+5s</div>
+<div id="p10" style="cursor:pointer">+10s</div>
+</div>
+
+<div style="border-top:1px solid #333;padding-top:10px;display:flex;justify-content:space-between;font-size:.75em;font-weight:bold">
+<div id="mk" style="color:#e91e63;cursor:pointer">MARK</div>
+<div id="ls" style="cursor:pointer">LIST</div>
+<div id="txt" style="color:#4caf50;cursor:pointer">TXT</div>
+<div id="mk10" style="color:#c2185b;cursor:pointer">MARK -10s</div>
+<div id="cfg_gear" style="color:#9147ff;cursor:pointer">⚙️</div>
+</div>
+
+<div id="tabs" style="display:none;flex-direction:row;background:#000;border-radius:4px;overflow:hidden;border:1px solid #333">
+<div id="tab-pc" style="flex:1;text-align:center;padding:6px;cursor:pointer;font-size:10px;border-right:1px solid #333">PC</div>
+<div id="tab-tab" style="flex:1;text-align:center;padding:6px;cursor:pointer;font-size:10px">TAB</div>
+</div>
+
+<div id="l" style="display:none;overflow-y:auto;background:#000;font-size:.8em;border:1px solid #333;max-height:300px"></div>
+`;
+
+document.body.appendChild(d);
+document.body.appendChild(restoreBtn);
+
+const I=d.querySelector('#i');
+const L=d.querySelector('#l');
+const T=d.querySelector('#tabs');
+
+window.render = function() {
+L.innerHTML='';
+
+d.querySelector('#tab-pc').style.background=viewTab==='PC'?'#9147ff':'#222';
+d.querySelector('#tab-tab').style.background=viewTab==='TAB'?'#9147ff':'#222';
+
+const filtered=sV.filter(x=>(x.dev===viewTab||(!x.dev&&viewTab==='PC')));
+
+filtered.slice().reverse().forEach(item=>{
+const row=document.createElement('div');
+
+row.style='display:flex;justify-content:space-between;padding:6px;border-bottom:1px solid #222;align-items:center';
+
+row.innerHTML=`
+<span class="jump" style="color:#9147ff;flex:1">${item.n}</span>
+<button class="ed-btn" style="background:#4caf50;color:#fff;border:none;padding:3px 6px;font-size:9px">EDIT</button>
+<button class="de-btn" style="background:#f44;color:#fff;border:none;padding:3px 6px;font-size:9px">DEL</button>
+`;
+
+row.querySelector('.jump').onclick=()=>{
+if(v()) v().currentTime=item.t;
+};
+
+row.querySelector('.ed-btn').onclick=()=>{
+let n=prompt('Nom:',item.n);
+if(n){item.n=n;save();}
+};
+
+row.querySelector('.de-btn').onclick=()=>{
+sV=sV.filter(i=>i!==item);
+save();
+};
+
+L.appendChild(row);
+});
+};
+
+function mk(offset){
+if(!v()) return;
+let t=Math.floor(Math.max(0,v().currentTime-offset));
+
+sV.push({
+n:f(t),
+t:t,
+dev:myDevice
+});
+
+save();
+T.style.display='flex';
+L.style.display='block';
+render();
 }
 
-function start() {
-    if (!modeSelected) {
-        setTimeout(showConfigModal, 1500);
-        return;
-    }
+d.querySelector('#g').onclick=()=>{
+let p=I.value.split(':').map(Number);
+if(!v()) return;
+if(p.length===3) v().currentTime=p[0]*3600+p[1]*60+p[2];
+};
 
-    loadData();
+d.querySelector('#m10').onclick=()=>{if(v())v().currentTime-=10;};
+d.querySelector('#m5').onclick=()=>{if(v())v().currentTime-=5;};
+d.querySelector('#p5').onclick=()=>{if(v())v().currentTime+=5;};
+d.querySelector('#p10').onclick=()=>{if(v())v().currentTime+=10;};
 
-    setTimeout(init, 3500);
+d.querySelector('#mk').onclick=()=>mk(0);
+d.querySelector('#mk10').onclick=()=>mk(10);
+d.querySelector('#min-mk').onclick=()=>mk(0);
+d.querySelector('#min-mk10').onclick=()=>mk(10);
 
-    setInterval(ensureApp, 3000);
+d.querySelector('#ls').onclick=()=>{
+L.style.display=L.style.display==='none'?'block':'none';
+T.style.display=T.style.display==='none'?'flex':'none';
+render();
+};
+
+d.querySelector('#tab-pc').onclick=()=>{viewTab='PC';render();};
+d.querySelector('#tab-tab').onclick=()=>{viewTab='TAB';render();};
+
+d.querySelector('#txt').onclick=()=>{
+let content=sV.map(i=>`${i.n} | ${i.t}s`).join('\n');
+const blob=new Blob([content],{type:'text/plain'});
+const a=document.createElement('a');
+a.href=URL.createObjectURL(blob);
+a.download='twitch_sync.txt';
+a.click();
+};
+
+d.querySelector('#cfg_gear').onclick=()=>{
+if(confirm('Réinitialiser les paramètres ?')){
+localStorage.removeItem(MODE_KEY);
+location.reload();
+}
+};
+
+d.querySelector('#x').onclick=()=>{
+d.style.display='none';
+restoreBtn.style.display='flex';
+};
+
+restoreBtn.onclick=()=>{
+d.style.display='flex';
+restoreBtn.style.display='none';
+};
+
+d.querySelector('#min').onclick=()=>{
+const m=d.classList.toggle('minimized');
+d.querySelector('#min').innerText=m?'+':'-';
+d.querySelector('#min-controls').style.display=m?'flex':'none';
+};
+
+let drag=false,ox=0,oy=0;
+
+d.querySelector('#h').onmousedown=e=>{
+drag=true;
+ox=e.clientX-d.offsetLeft;
+oy=e.clientY-d.offsetTop;
+};
+
+window.addEventListener('mousemove',e=>{
+if(!drag) return;
+d.style.left=(e.clientX-ox)+'px';
+d.style.top=(e.clientY-oy)+'px';
+});
+
+window.addEventListener('mouseup',()=>{
+if(drag){
+localStorage.setItem(POS_KEY,JSON.stringify({
+left:d.style.left,
+top:d.style.top
+}));
+}
+drag=false;
+});
+
+setInterval(()=>{
+if(v()&&!v().paused&&document.activeElement!==I){
+I.value=f(Math.floor(v().currentTime));
+}
+},1000);
+
+render();
 }
 
-window.addEventListener('load', start);
+setTimeout(init,3000);
+setInterval(()=>{ if(!document.getElementById('twj')) init(); },3000);
 
+})();
 })();
