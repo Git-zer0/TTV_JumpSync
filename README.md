@@ -24,8 +24,8 @@ This script synchronizes your Twitch moments across your devices via your own pr
 7. Copy the codes (`apiKey`, `databaseURL`, etc.) that appear.
 
 ## 💻 Step 2: Installation on PC
-1. Install the **Tampermonkey** extension.
-2. Click on **TwitchJumpSync.user.py** in the list above then click on **"Raw"** button at the top right to install the script in Tampermonley.
+1. Install the **Tampermonkey** extension and enable it.
+2. Click on **TwitchJumpSync.user.py** in the list above then click on **"Raw"** button at the top right to install the script in Tampermonkey.
 3. Go to Twitch, a configuration window will appear: paste your Firebase codes and save.
 
 ## 📱 Step 3: Installation on Android (Tablet/Mobile)
@@ -60,7 +60,7 @@ Ce script synchronise vos moments Twitch entre vos appareils via votre propre ba
 7. Copiez les codes (`apiKey`, `databaseURL`, etc.) qui s'affichent.
 
 ## 💻 Étape 2 : Installation sur PC
-1. Installez l'extension **Tampermonkey**.
+1. Installez l'extension **Tampermonkey** et active-le.
 2. Clique sur TwitchJumpSync.user.py dans la liste en haut, ensuite clique sur le bouton **"Raw"** en haut à droite pour installer le script.
 3. Allez sur Twitch, une fenêtre de configuration apparaîtra : collez vos codes Firebase et enregistrez.
 
