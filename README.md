@@ -10,65 +10,62 @@ Jump to precise moments in VODs and save your favorite highlights with the MARK 
 
 
 
-- Quick Start Guide -
+                                                                 - Quick Start Guide -
 
-This script synchronizes your Twitch moments across your devices via your own private database.
+# 📖 USER GUIDE: TWITCH SYNC MULTI-DEVICE
 
-## 🛠️ Step 1: Create your "Server" (Firebase)
-1. Go to [Firebase Console](https://console.firebase.google.com/).
-2. Create a project named **TwitchSync**.
-3. In the left-hand menu, go to **Realtime Database** > **Create**.
-4. Choose **"Start in test mode"** (important so your devices can write data).
-5. Go to **Project Settings** (gear icon) > **General**.
-6. Click the `</>` icon to create a Web App. 
-7. Copy the codes (`apiKey`, `databaseURL`, etc.) that appear.
+### 🛠 STEP 1: Prepare your browser
+* **On PC**: Install the **Tampermonkey** extension (available for Chrome, Firefox, or Edge).
+* **On Tablet (Android)**: 
+    1. Install the **Firefox Nightly** app.
+    2. Go to **Settings** > **About Firefox Nightly**.
+    3. Tap the **Firefox logo 5 times quickly** to unlock the developer menu.
+    4. In the settings, use the **Extensions** option to add **Tampermonkey**.
 
-## 💻 Step 2: Installation on PC
-1. Install the **Tampermonkey** extension and enable it.
-2. Click on **TwitchJumpSync.user.py** in the list above then click on **"Raw"** button at the top right to install the script in Tampermonkey.
-3. Go to Twitch, a configuration window will appear: paste your Firebase codes and save.
+### 📥 STEP 2: Install the script
+1. Click on `TwitchJumpSync.user.js` in the list above.
+2. Click the **"Raw"** button at the top right of the code.
+3. Tampermonkey will open automatically: click the **"Install"** button.
 
-## 📱 Step 3: Installation on Android (Tablet/Mobile)
-1. Install **FIREFOX NIGHTLY**.
-2. In **FIREFOX NIGHTLY**, install the **Tampermonkey** extension.
-3. Open this Gist in **FIREFOX NIGHTLY**, click the **"Raw"** button and install.
-4. On Twitch within Firefox Nightly on your tablet, enter **the same Firebase codes** as on PC.
+### ⚙️ STEP 3: Sync or Offline Mode
+Open Twitch.tv and wait 3 seconds for the window to appear. You have two choices:
 
----
-**💡 Usage:** Click **MARK** to save a moment. Click **LIST** to view your saves and switch between devices using the **PC/TAB** tabs.
+1. **Local Mode (Simple)**: Click on **"MODE HORS LIGNE"**. Your markers will be saved only on this device.
 
-
-
+2. **Sync Mode (Cloud)**: Your markers will be automatically synced across all your devices.
+    1. Create a free project on the **Firebase Console**.
+    2. Enable a **Realtime Database** in **"Test Mode"**.
+    3. Copy your keys (`apiKey`, `databaseURL`, `projectId`, `appId`) from the Firebase settings.
+    4. Go back to Twitch, click the gear icon to reset settings and access the Firebase login page, enter your information, and connect.
 
 
 
 
 
-French : 
 
-# 🚀 TwitchJumpSync - Guide de démarrage rapide
+# 📖 MODE D'EMPLOI : TWITCH SYNC MULTI-DEVICE
 
-Ce script synchronise vos moments Twitch entre vos appareils via votre propre base de données privée.
+### 🛠 ÉTAPE 1 : Préparer le navigateur
+* **Sur PC** : Installez l'extension **Tampermonkey** (disponible sur Chrome, Firefox ou Edge).
+* **Sur Tablette (Android)** : 
+    1. Installez l'application **Firefox Nightly**.
+    2. Allez dans les **Paramètres** > **À propos de Firefox Nightly**.
+    3. Appuyez **5 fois rapidement sur le logo Firefox** pour débloquer le menu développeur.
+    4. Dans les paramètres, utilisez l'option **extensions** pour ajouter **Tampermonkey**.
 
-## 🛠️ Étape 1 : Créer votre "Serveur" (Firebase)
-1. Allez sur [Firebase Console](https://console.firebase.google.com/).
-2. Créez un projet nommé **TwitchSync**.
-3. Dans le menu de gauche, allez dans **Bases de données Realtime Database** > **Créer**.
-4. Choisissez **"Démarrer en mode test"** (important pour que vos appareils puissent écrire).
-5. Allez dans les **Paramètres du projet** (icône roue dentée) > **Général**.
-6. Cliquez sur l'icône `</>` pour créer une Web App. 
-7. Copiez les codes (`apiKey`, `databaseURL`, etc.) qui s'affichent.
+### 📥 ÉTAPE 2 : Installer le script
+1. cliquez sur TwitchJumpSync.user.js dans la liste juste en haut.
+2. Cliquez sur le bouton **"Raw"** en haut à droite du code.
+3. Tampermonkey va s'ouvrir automatiquement : cliquez sur le bouton **"Installer"**.
 
-## 💻 Étape 2 : Installation sur PC
-1. Installez l'extension **Tampermonkey** et active-le.
-2. Clique sur TwitchJumpSync.user.py dans la liste en haut, ensuite clique sur le bouton **"Raw"** en haut à droite pour installer le script.
-3. Allez sur Twitch, une fenêtre de configuration apparaîtra : collez vos codes Firebase et enregistrez.
+### ⚙️ ÉTAPE 3 : Mode Sync ou Offline
+Ouvrez Twitch.tv et attendez 3 secondes que la fenêtre apparaisse. Vous avez le choix entre :
 
-## 📱 Étape 3 : Installation sur Android (Tablette/Mobile)
-1. Installez FIREFOX NIGHTLY.
-2. Dans FIREFOX NIGHTLY, installez l'extension **Tampermonkey**.
-3. Ouvrez ce Gist dans FIREFOX NIGHTLY, cliquez sur **"Raw"** et installez.
-4. Sur Twitch dans Firefox Nigthly de votre tablette, entrez **les mêmes codes Firebase** que sur PC.
+1 **Mode Local (Simple)** : Cliquez sur **"MODE HORS LIGNE"**. Vos marqueurs seront enregistrés uniquement sur cet appareil.
 
----
-**💡 Utilisation :** Cliquez sur **MARK** pour sauvegarder un instant. Cliquez sur **LIST** pour voir vos sauvegardes et passer d'un appareil à l'autre via les onglets **PC/TAB**.
+2 **Mode Sync (Cloud)** : Vos marqueurs seront synchronisés automatiquement sur vos appareils.
+    1. Créez un projet gratuit sur la **Console Firebase**.
+    2. Activez une **Realtime Database** en **"Mode Test"**.
+    3. Copiez vos clés (`apiKey`, `databaseURL`, `projectId`, `appId`) dans la fenêtre sur Twitch.
+    4. Revenez sur Twitch, cliquer sur l'engrenage pour réinitialiser les paramètres et avoir accès à la page login Firebase, entrer vos informations et connecter vous.
+
