@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         TwitchJumpSync Final Stable
+// @name         TwitchJumpSync Force Invite
 // @namespace    http://tampermonkey.net/
-// @version      9.0
-// @description  Affiche l'app même sans config, mode local garanti
+// @version      9.5
+// @description  L'invitation s'affiche obligatoirement tant qu'aucun mode n'est choisi
 // @author       User
 // @match        https://www.twitch.tv/*
 // @match        https://m.twitch.tv/*
@@ -15,63 +15,33 @@
     'use strict';
 
     const CFG_KEY = 'tw_sync_fb_config';
-    const MODE_KEY = 'tw_mode_local';
+    const MODE_KEY = 'tw_mode_selected'; // Nouveau flag pour forcer l'invitation
     const LOCAL_DATA_KEY = 'tw_sync_local_data';
     const sT = 'tw_sync_data';
 
     let firebaseConfig = JSON.parse(localStorage.getItem(CFG_KEY)) || null;
-    let isLocalMode = localStorage.getItem(MODE_KEY) === 'true';
+    let modeSelected = localStorage.getItem(MODE_KEY); // 'sync' ou 'local'
 
     let sV = [];
     let db = null;
 
-    // --- 1. INITIALISATION DES DONNÉES ---
-    const loadData = () => {
-        if (!isLocalMode && firebaseConfig && firebaseConfig.apiKey) {
-            try {
-                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-                db = firebase.database();
-                db.ref(sT).on('value', (snap) => {
-                    sV = Array.isArray(snap.val()) ? snap.val() : [];
-                    if (typeof render === 'function') render();
-                });
-            } catch(e) { 
-                console.log("Firebase fail, switching to local");
-                isLocalMode = true; 
-            }
-        } 
-        
-        if (isLocalMode || !firebaseConfig) {
-            sV = JSON.parse(localStorage.getItem(LOCAL_DATA_KEY)) || [];
-        }
-    };
-
-    const save = () => {
-        if (db && !isLocalMode) {
-            db.ref(sT).set(sV);
-        } else {
-            localStorage.setItem(LOCAL_DATA_KEY, JSON.stringify(sV));
-            if (typeof render === 'function') render();
-        }
-    };
-
-    // --- 2. INTERFACE DE CONFIGURATION (L'INVITATION) ---
+    // --- 1. L'INVITATION (BLINDÉE) ---
     function showConfigModal() {
         if (document.getElementById('cfg-modal')) return;
         const modal = document.createElement('div');
         modal.id = "cfg-modal";
-        modal.style = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#18181b;padding:20px;border:2px solid #9147ff;border-radius:12px;z-index:1000000010;color:white;font-family:sans-serif;width:300px;display:flex;flex-direction:column;gap:8px;box-shadow:0 0 50px #000;';
+        modal.style = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#18181b;padding:25px;border:2px solid #9147ff;border-radius:12px;z-index:1000000010;color:white;font-family:sans-serif;width:320px;display:flex;flex-direction:column;gap:10px;box-shadow:0 0 60px #000;';
         modal.innerHTML = `
             <h3 style="color:#9147ff;margin:0;text-align:center">TwitchJumpSync</h3>
-            <input id="f_api" placeholder="API Key" style="background:#000;color:white;border:1px solid #333;padding:8px" value="${firebaseConfig?.apiKey || ''}">
-            <input id="f_url" placeholder="Database URL" style="background:#000;color:white;border:1px solid #333;padding:8px" value="${firebaseConfig?.databaseURL || ''}">
-            <input id="f_pid" placeholder="Project ID" style="background:#000;color:white;border:1px solid #333;padding:8px" value="${firebaseConfig?.projectId || ''}">
-            <input id="f_aid" placeholder="App ID" style="background:#000;color:white;border:1px solid #333;padding:8px" value="${firebaseConfig?.appId || ''}">
-            <div style="display:flex;gap:5px;margin-top:10px">
-                <button id="f_save" style="flex:1;background:#9147ff;color:white;border:none;padding:10px;cursor:pointer;font-weight:bold">Sync Firebase</button>
-                <button id="f_local" style="flex:1;background:#444;color:white;border:none;padding:10px;cursor:pointer">Mode Hors Ligne</button>
-            </div>
-            <button id="f_close" style="background:none;border:none;color:gray;cursor:pointer;font-size:10px;margin-top:5px">Fermer / Continuer</button>
+            <p style="font-size:12px;text-align:center;color:#adadb8">Choisissez votre mode d'utilisation :</p>
+            
+            <input id="f_api" placeholder="Firebase API Key" style="background:#000;color:white;border:1px solid #333;padding:10px;border-radius:4px" value="${firebaseConfig?.apiKey || ''}">
+            <input id="f_url" placeholder="Database URL" style="background:#000;color:white;border:1px solid #333;padding:10px;border-radius:4px" value="${firebaseConfig?.databaseURL || ''}">
+            <input id="f_pid" placeholder="Project ID" style="background:#000;color:white;border:1px solid #333;padding:10px;border-radius:4px" value="${firebaseConfig?.projectId || ''}">
+            <input id="f_aid" placeholder="App ID" style="background:#000;color:white;border:1px solid #333;padding:10px;border-radius:4px" value="${firebaseConfig?.appId || ''}">
+            
+            <button id="f_save" style="background:#9147ff;color:white;border:none;padding:14px;cursor:pointer;font-weight:bold;border-radius:6px;margin-top:10px">CONNEXION FIREBASE (SYNC)</button>
+            <button id="f_local" style="background:#222;color:white;border:1px solid #444;padding:12px;cursor:pointer;font-weight:bold;border-radius:6px">MODE HORS LIGNE (LOCAL)</button>
         `;
         document.body.appendChild(modal);
 
@@ -82,34 +52,61 @@
                 projectId: document.getElementById('f_pid').value.trim(),
                 appId: document.getElementById('f_aid').value.trim()
             };
-            localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
-            localStorage.setItem(MODE_KEY, 'false');
-            location.reload();
+            if(cfg.apiKey) {
+                localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+                localStorage.setItem(MODE_KEY, 'sync');
+                location.reload();
+            } else { alert("API Key requise"); }
         };
 
         document.getElementById('f_local').onclick = () => {
-            localStorage.setItem(MODE_KEY, 'true');
+            localStorage.setItem(MODE_KEY, 'local');
             location.reload();
         };
-
-        document.getElementById('f_close').onclick = () => modal.remove();
     }
 
-    // --- 3. INITIALISATION DE L'APP ---
+    // --- 2. LOGIQUE D'AFFICHAGE ---
+    // Si aucun mode n'est choisi (nouvelle installation), on affiche la modal et on s'arrête.
+    if (!modeSelected) {
+        setTimeout(showConfigModal, 1500); // Délai pour laisser Twitch charger
+        return; 
+    }
+
+    // --- 3. CHARGEMENT DES DONNÉES (MODE CHOISI) ---
+    const isLocal = (modeSelected === 'local');
+
+    if (!isLocal && firebaseConfig) {
+        try {
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            db.ref(sT).on('value', (snap) => {
+                sV = Array.isArray(snap.val()) ? snap.val() : [];
+                if (typeof render === 'function') render();
+            });
+        } catch(e) { console.error("Firebase error"); }
+    } else {
+        sV = JSON.parse(localStorage.getItem(LOCAL_DATA_KEY)) || [];
+    }
+
+    const save = () => {
+        if (db && modeSelected === 'sync') { db.ref(sT).set(sV); }
+        else { localStorage.setItem(LOCAL_DATA_KEY, JSON.stringify(sV)); render(); }
+    };
+
+    // --- 4. L'INTERFACE PRINCIPALE (TOUJOURS VISIBLE) ---
     function init() {
         if (document.getElementById('twj')) return;
-
-        loadData(); // On charge les données (Firebase ou Local)
-
         const v = () => document.querySelector('video'),
               f = s => { try { return new Date(s * 1000).toISOString().substr(11, 8); } catch(e) { return "00:00:00"; } };
 
         const d = document.createElement('div');
         d.id = 'twj';
-        d.style = `position:fixed;top:120px;left:20px;background:#18181b;padding:12px;border:2px solid #9147ff;border-radius:12px;width:260px;color:#fff;font-family:sans-serif;z-index:999999999;display:flex;flex-direction:column;gap:10px;`;
+        d.style = `position:fixed;top:100px;left:10px;background:#18181b;padding:12px;border:2px solid #9147ff;border-radius:12px;width:260px;color:#fff;font-family:sans-serif;z-index:999999999;display:flex;flex-direction:column;gap:10px;`;
         
         d.innerHTML = `
-            <div id="h" style="width:100%;height:25px;background:#333;border-radius:4px;cursor:move;display:flex;justify-content:center;align-items:center;font-size:10px;user-select:none">DRAG | ${isLocalMode ? 'LOCAL' : 'SYNC'}</div>
+            <div id="h" style="width:100%;height:25px;background:#333;border-radius:4px;cursor:move;display:flex;justify-content:center;align-items:center;font-size:10px;user-select:none">
+                DRAG | ${modeSelected.toUpperCase()}
+            </div>
             <input id="i" type="tel" style="width:100%;background:#000;color:#fff;border:1px solid #333;padding:8px 5px;font-size:1.4em;text-align:center;border-radius:5px;font-family:monospace;">
             <div id="g" style="color:#9147ff;font-weight:bold;text-align:center;cursor:pointer;padding:8px;background:#000;border-radius:4px;">JUMP</div>
             <div style="display:flex;justify-content:space-between;font-size:0.7em;font-weight:bold;padding-top:5px;border-top:1px solid #333">
@@ -134,30 +131,27 @@
             });
         };
 
-        // Actions
-        document.getElementById('mk').onclick = () => { if(v()){ sV.push({n:f(v().currentTime), t:Math.floor(v().currentTime)}); save(); } };
-        document.getElementById('ls').onclick = () => { L.style.display = L.style.display==='none' ? 'block' : 'none'; render(); };
-        document.getElementById('cfg_gear').onclick = () => showConfigModal();
-        document.getElementById('g').onclick = () => {
-             const pts = I.value.split(':').map(Number);
-             if(v()) v().currentTime = (pts[0]*3600) + (pts[1]*60) + pts[2];
+        // Bouton ⚙️ pour réinitialiser et revoir l'invitation
+        document.getElementById('cfg_gear').onclick = () => {
+            if(confirm("Réinitialiser les paramètres pour revoir l'invitation ?")) {
+                localStorage.removeItem(MODE_KEY);
+                location.reload();
+            }
         };
 
-        // Drag simple
+        // Drag & Actions classiques
         let isD = false, oX, oY;
         document.getElementById('h').onmousedown = (e) => { isD = true; oX = e.clientX - d.offsetLeft; oY = e.clientY - d.offsetTop; };
         window.addEventListener('mousemove', (e) => { if(isD) { d.style.left = (e.clientX - oX) + 'px'; d.style.top = (e.clientY - oY) + 'px'; }});
         window.addEventListener('mouseup', () => isD = false);
 
+        document.getElementById('mk').onclick = () => { if(v()){ sV.push({n:f(v().currentTime), t:Math.floor(v().currentTime)}); save(); } };
+        document.getElementById('ls').onclick = () => { L.style.display = L.style.display==='none' ? 'block' : 'none'; render(); };
+
         document.body.appendChild(d);
         setInterval(() => { if(v() && !v().paused && document.activeElement !== I) I.value = f(v().currentTime); }, 1000);
-
-        // Si rien n'est configuré du tout, on ouvre la modal par-dessus l'app
-        if (!firebaseConfig && !isLocalMode) { showConfigModal(); }
-        
         render();
     }
 
-    // Lancement
     setTimeout(init, 2000);
 })();
