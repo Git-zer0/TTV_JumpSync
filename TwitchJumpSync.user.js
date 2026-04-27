@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         TwitchJumpSync Hybrid Final
+// @name         TwitchJumpSync Hybrid
 // @namespace    http://tampermonkey.net/
-// @version      5.1
-// @description  Base vv4 intégrale - Stockage Local par défaut + Option Firebase Sync
+// @version      5.5
+// @description  Logique vv4 intégrale avec option LocalStorage ou Firebase
 // @author       User
 // @match        https://www.twitch.tv/*
 // @match        https://m.twitch.tv/*
@@ -17,32 +17,43 @@
     const CFG_KEY = 'tw_sync_fb_config';
     const LOCAL_DATA_KEY = 'tw_sync_local_data';
     const sT = 'tw_sync_data';
-    
+
+    // 1. CHARGEMENT DE LA CONFIG OU MODE LOCAL
+    let firebaseConfig = JSON.parse(localStorage.getItem(CFG_KEY)) || null;
+    let isLocalMode = localStorage.getItem('tw_mode_local') === 'true';
+
+    // Si aucune config et pas en mode local, on affiche la config
+    if (!firebaseConfig && !isLocalMode) {
+        showConfigModal();
+        return;
+    }
+
     let sV = [];
-    let isSyncEnabled = false;
     let db = null;
 
-    // 1. INITIALISATION DU MODE
-    const firebaseConfig = JSON.parse(localStorage.getItem(CFG_KEY));
-    if (firebaseConfig && firebaseConfig.apiKey) {
+    if (firebaseConfig && !isLocalMode) {
         try {
             if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
             db = firebase.database();
-            isSyncEnabled = true;
-        } catch(e) { console.error("Firebase fail:", e); isSyncEnabled = false; }
+            db.ref(sT).on('value', (snap) => {
+                sV = Array.isArray(snap.val()) ? snap.val() : [];
+                if (typeof render === 'function') render();
+            });
+        } catch(e) { console.error("Firebase error", e); }
+    } else {
+        sV = JSON.parse(localStorage.getItem(LOCAL_DATA_KEY)) || [];
     }
 
-    // 2. SAUVEGARDE HYBRIDE
     const save = () => {
-        if (isSyncEnabled && db) {
+        if (db && !isLocalMode) {
             db.ref(sT).set(sV);
         } else {
             localStorage.setItem(LOCAL_DATA_KEY, JSON.stringify(sV));
-            if (typeof render === 'function') render();
+            render();
         }
     };
 
-    // 3. STYLE ORIGINAL VV4
+    // 2. STYLE (Strictement identique à ton fichier)
     const style = document.createElement('style');
     style.innerHTML = `
         #i::selection { background: #0078d7 !important; color: #ffffff !important; }
@@ -56,20 +67,52 @@
     `;
     document.head.appendChild(style);
 
+    function showConfigModal() {
+        const modal = document.createElement('div');
+        modal.id = "cfg-modal";
+        modal.style = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#18181b;padding:20px;border:2px solid #9147ff;border-radius:12px;z-index:1000000001;color:white;font-family:sans-serif;width:320px;display:flex;flex-direction:column;gap:5px;box-shadow:0 0 30px #000;max-height:90vh;overflow-y:auto;';
+        modal.innerHTML = `
+            <h2 style="color:#9147ff;margin:0 0 10px 0;font-size:1.2em;text-align:center">TwitchJumpSync Config</h2>
+            <label style="font-size:10px;color:#adadb8">API KEY</label><input id="cfg_apiKey" style="background:#000;color:white;border:1px solid #333;padding:5px;margin-bottom:5px" value="${firebaseConfig?.apiKey || ''}">
+            <label style="font-size:10px;color:#adadb8">DATABASE URL</label><input id="cfg_databaseURL" style="background:#000;color:white;border:1px solid #333;padding:5px;margin-bottom:5px" value="${firebaseConfig?.databaseURL || ''}">
+            <label style="font-size:10px;color:#adadb8">PROJECT ID</label><input id="cfg_projectId" style="background:#000;color:white;border:1px solid #333;padding:5px;margin-bottom:5px" value="${firebaseConfig?.projectId || ''}">
+            <label style="font-size:10px;color:#adadb8">APP ID</label><input id="cfg_appId" style="background:#000;color:white;border:1px solid #333;padding:5px;margin-bottom:5px" value="${firebaseConfig?.appId || ''}">
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+                <button id="cfg_save" style="background:#9147ff;border:none;color:white;padding:10px;border-radius:4px;cursor:pointer;font-weight:bold">Utiliser Firebase (Sync)</button>
+                <button id="cfg_local" style="background:#444;border:none;color:white;padding:10px;border-radius:4px;cursor:pointer">Utiliser sans Firebase (Local)</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        document.getElementById('cfg_save').onclick = () => {
+            const newCfg = {
+                apiKey: document.getElementById('cfg_apiKey').value.trim(),
+                databaseURL: document.getElementById('cfg_databaseURL').value.trim(),
+                projectId: document.getElementById('cfg_projectId').value.trim(),
+                appId: document.getElementById('cfg_appId').value.trim(),
+                authDomain: document.getElementById('cfg_projectId').value.trim() + ".firebaseapp.com",
+                storageBucket: document.getElementById('cfg_projectId').value.trim() + ".appspot.com"
+            };
+            localStorage.setItem(CFG_KEY, JSON.stringify(newCfg));
+            localStorage.setItem('tw_mode_local', 'false');
+            location.reload();
+        };
+
+        document.getElementById('cfg_local').onclick = () => {
+            localStorage.setItem('tw_mode_local', 'true');
+            location.reload();
+        };
+    }
+
+    // 3. LOGIQUE INTERFACE (Copiée de ton TwitchJumpSync.user.js)
     function init() {
         if (document.getElementById('twj')) return;
-
         const isPC = window.matchMedia('(pointer: fine)').matches;
         let myDevice = isPC ? 'PC' : 'TAB';
         let viewTab = myDevice;
 
         let v = () => document.querySelector('video'),
             f = s => { try { return new Date(s * 1000).toISOString().substr(11, 8); } catch(e) { return "00:00:00"; } };
-
-        const getCurCh = () => {
-            try { return (document.querySelector('.channel-info-content h1') || document.querySelector('[data-a-target="user-card-link"]') || {innerText: "Stream"}).innerText.trim(); }
-            catch(e) { return "TwitchStream"; }
-        };
 
         const restoreBtn = document.createElement('div');
         restoreBtn.id = 'twj-restore';
@@ -80,10 +123,10 @@
         d.id = 'twj';
         d.style = 'position:fixed;top:100px;left:10px;background:#18181b;padding:12px;border:2px solid #9147ff;border-radius:12px;width:260px;height:auto;color:#fff;font-family:sans-serif;touch-action:none;display:flex;flex-direction:column;gap:10px;resize:both;max-width:95vw;max-height:85vh';
         
-        const modeStatus = isSyncEnabled ? '<span style="color:#4caf50">SYNC</span>' : '<span style="color:#adadb8">LOCAL</span>';
+        const currentMode = isLocalMode ? "LOCAL" : "SYNC";
 
         d.innerHTML = `
-            <div id="h" style="width:100%;height:25px;background:#333;border-radius:4px;cursor:move;display:flex;justify-content:center;align-items:center;font-size:10px;flex-shrink:0;user-select:none">DRAG (${myDevice}) | ${modeStatus}</div>
+            <div id="h" style="width:100%;height:25px;background:#333;border-radius:4px;cursor:move;display:flex;justify-content:center;align-items:center;font-size:10px;flex-shrink:0;user-select:none">DRAG (${myDevice}) | ${currentMode}</div>
             <button id="min" style="position:absolute;top:5px;left:8px;background:none;border:none;color:#fff;font-weight:bold;padding:5px;cursor:pointer;font-size:16px;line-height:1">-</button>
             <button id="x" style="position:absolute;top:5px;right:8px;background:none;border:none;color:#f44;font-weight:bold;padding:5px;cursor:pointer">X</button>
             <div id="min-controls" style="display:none;justify-content:center;gap:15px;margin-top:10px">
@@ -102,7 +145,7 @@
                     <div id="ls" style="cursor:pointer">LIST</div>
                     <div id="txt" style="color:#4caf50;cursor:pointer">TXT</div>
                     <div id="mk10" style="color:#c2185b;cursor:pointer">MK-10</div>
-                    <div id="cfg_gear" style="color:#9147ff;cursor:pointer">⚙️</div>
+                    <div id="cfg_btn" style="color:#9147ff;cursor:pointer">⚙️</div>
                 </div>
             </div>
             <div id="tabs" style="display:none;flex-direction:row;background:#000;border-radius:4px;overflow:hidden;border:1px solid #333;margin-top:5px;flex-shrink:0">
@@ -115,7 +158,6 @@
 
         const I = document.getElementById('i'), L = document.getElementById('l'), T = document.getElementById('tabs');
 
-        // LOGIQUE D'AFFICHAGE LISTE
         window.render = () => {
             if (!L) return;
             L.innerHTML = '';
@@ -130,7 +172,6 @@
                                  <button class="de-btn" style="background:#f44;color:#fff;border:none;border-radius:3px;padding:3px 6px;font-size:9px;cursor:pointer">DEL</button>`;
                 
                 const jumpLink = row.querySelector('.jump');
-                // LOGIQUE CLIC MILIEU / ARRIERE PLAN VV4
                 jumpLink.onclick = (e) => {
                     if (e.button === 1 || (e.button === 0 && (e.ctrlKey || e.metaKey))) {
                         e.preventDefault();
@@ -144,46 +185,7 @@
             });
         };
 
-        // FENÊTRE DE CONFIGURATION (Ton interface Firebase)
-        document.getElementById('cfg_gear').onclick = () => {
-            const modal = document.createElement('div');
-            modal.style = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#18181b;padding:20px;border:2px solid #9147ff;border-radius:12px;z-index:1000000001;color:white;font-family:sans-serif;width:280px;display:flex;flex-direction:column;gap:10px;box-shadow:0 0 30px #000;';
-            modal.innerHTML = `
-                <h4 style="margin:0;color:#9147ff;text-align:center">Configuration Sync</h4>
-                <p style="font-size:10px;color:#adadb8;margin:0">Entrez vos identifiants Firebase ou videz pour rester en Local.</p>
-                <input id="f_api" placeholder="API Key" value="${firebaseConfig?.apiKey || ''}" style="background:#000;color:white;border:1px solid #333;padding:5px;border-radius:4px">
-                <input id="f_url" placeholder="Database URL" value="${firebaseConfig?.databaseURL || ''}" style="background:#000;color:white;border:1px solid #333;padding:5px;border-radius:4px">
-                <input id="f_pid" placeholder="Project ID" value="${firebaseConfig?.projectId || ''}" style="background:#000;color:white;border:1px solid #333;padding:5px;border-radius:4px">
-                <div style="display:flex;gap:5px;margin-top:10px">
-                    <button id="f_save" style="flex:1;background:#9147ff;color:white;border:none;padding:10px;border-radius:4px;cursor:pointer;font-weight:bold">Activer Sync</button>
-                    <button id="f_local" style="flex:1;background:#444;color:white;border:none;padding:10px;border-radius:4px;cursor:pointer">Passer Local</button>
-                </div>
-                <button id="f_close" style="background:none;border:none;color:red;cursor:pointer;font-size:10px">Fermer sans changer</button>
-            `;
-            document.body.appendChild(modal);
-            document.getElementById('f_save').onclick = () => {
-                const cfg = {
-                    apiKey: document.getElementById('f_api').value.trim(),
-                    databaseURL: document.getElementById('f_url').value.trim(),
-                    projectId: document.getElementById('f_pid').value.trim(),
-                    authDomain: document.getElementById('f_pid').value.trim() + ".firebaseapp.com",
-                    appId: "1:704668031471:web:default"
-                };
-                if(cfg.apiKey) { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); location.reload(); }
-            };
-            document.getElementById('f_local').onclick = () => { localStorage.removeItem(CFG_KEY); location.reload(); };
-            document.getElementById('f_close').onclick = () => modal.remove();
-        };
-
-        // CHARGEMENT INITIAL
-        if (isSyncEnabled && db) {
-            db.ref(sT).on('value', (snap) => { sV = Array.isArray(snap.val()) ? snap.val() : []; render(); });
-        } else {
-            sV = JSON.parse(localStorage.getItem(LOCAL_DATA_KEY)) || [];
-            render();
-        }
-
-        // DRAG & RESIZE VV4 (LOGIQUE INTÉGRALE)
+        // DRAG & DROP & RESIZE (Code exact de vv4.txt)
         let isD = false, isR = false, oX, oY, sW, sH;
         const start = (e, type) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.closest('#l')) return;
@@ -205,7 +207,7 @@
         document.getElementById('h').onmousedown = document.getElementById('h').ontouchstart = (e) => start(e, 'd');
         document.getElementById('r').onmousedown = document.getElementById('r').ontouchstart = (e) => start(e, 'r');
 
-        // BOUTONS ACTIONS
+        // ACTIONS
         document.getElementById('mk').onclick = () => { if(v()){ sV.push({ n: f(v().currentTime), t: Math.floor(v().currentTime), u: window.location.href.split('?')[0], dev: myDevice }); save(); } };
         document.getElementById('mk10').onclick = () => { if(v()){ let t = Math.max(0, v().currentTime - 10); sV.push({ n: f(t), t: Math.floor(t), u: window.location.href.split('?')[0], dev: myDevice }); save(); } };
         document.getElementById('ls').onclick = () => { const open = L.style.display !== 'none'; L.style.display = open ? 'none' : 'block'; T.style.display = open ? 'none' : 'flex'; render(); };
@@ -218,7 +220,8 @@
         document.getElementById('min').onclick = () => { d.classList.toggle('minimized'); d.style.height = d.classList.contains('minimized') ? '105px' : 'auto'; };
         document.getElementById('x').onclick = () => { d.style.display = 'none'; restoreBtn.style.display = 'flex'; };
         restoreBtn.onclick = () => { d.style.display = 'flex'; restoreBtn.style.display = 'none'; };
-        document.getElementById('g').onclick = () => { if(v()){ const parts = I.value.split(':'); if(parts.length === 3) v().currentTime = (+parts[0])*3600 + (+parts[1])*60 + (+parts[2]); } };
+        document.getElementById('cfg_btn').onclick = () => showConfigModal();
+        document.getElementById('g').onclick = () => { if(v()){ const pts = I.value.split(':'); if(pts.length === 3) v().currentTime = (+pts[0])*3600 + (+pts[1])*60 + (+pts[2]); } };
 
         const inject = () => {
             const container = document.querySelector('.video-player__container') || document.body;
@@ -226,6 +229,7 @@
         };
         inject(); setInterval(inject, 2000);
         setInterval(() => { if (v() && !v().paused && document.activeElement != I) { I.value = f(v().currentTime); } }, 1000);
+        render();
     }
     setTimeout(init, 3000);
 })();
