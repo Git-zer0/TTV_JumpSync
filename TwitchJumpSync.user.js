@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         TwitchJump
+// @name         TwitchJumpSync
 // @namespace    http://tampermonkey.net/
 // @version      3.0
 // @description  Logique vv4 stable avec configuration Firebase dynamique
