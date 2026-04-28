@@ -1,6 +1,6 @@
 
 // ==UserScript==
-// @name         Twitch Sync Multi-Device Config Edition
+// @name         Twitch Sync Multi-Device v1
 // @namespace    http://tampermonkey.net/
 // @version      3.1
 // @description  vv4 complet + config Firebase + mode local + clic molette + auto sélection HH/MM/SS + Fix Android Drag
