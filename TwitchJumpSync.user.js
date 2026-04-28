@@ -1,9 +1,8 @@
-
 // ==UserScript==
 // @name         Twitch Sync Multi-Device v1
 // @namespace    http://tampermonkey.net/
-// @version      3.1
-// @description  vv4 complet + config Firebase + mode local + clic molette + auto sélection HH/MM/SS + Fix Android Drag
+// @version      3.4
+// @description  vv4 complet + config Firebase + mode local + clic molette + auto sélection HH/MM/SS + Fix Android Drag + Visibility & Ratio Fix
 // @author       User
 // @match        https://www.twitch.tv/*
 // @match        https://m.twitch.tv/*
@@ -29,7 +28,6 @@
 
     function showConfigModal(){
         if(document.getElementById('cfg-modal')) return;
-
         const modal=document.createElement('div');
         modal.id='cfg-modal';
         modal.style='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#18181b;padding:25px;border:2px solid #9147ff;border-radius:12px;z-index:2147483647;color:#fff;font-family:sans-serif;width:320px;display:flex;flex-direction:column;gap:10px;box-shadow:0 0 60px #000';
@@ -97,7 +95,7 @@
         style.innerHTML=`
             #i::selection{background:#0078d7!important;color:#fff!important;}
             #i{caret-color:#0078d7!important;outline:none!important;}
-            #twj{transition:height .2s,width .2s;box-shadow:0 0 15px rgba(0,0,0,.4);overflow:hidden;z-index:999999999!important;}
+            #twj{transition:height .2s,width .2s;box-shadow:0 0 15px rgba(0,0,0,.4);overflow:hidden;z-index:2147483647!important;pointer-events: auto;}
             .minimized{width:230px!important;height:105px!important;}
             .minimized>*:not(#h):not(#min-controls):not(#min):not(#x){display:none!important;}
             .min-btn-style{background:#e91e63;color:#fff;border:none;border-radius:4px;padding:0 10px;height:32px;font-size:10px;font-weight:bold;cursor:pointer;}
@@ -108,6 +106,9 @@
 
         function init(){
             if(document.getElementById('twj')) return;
+
+            const getContainer = () => document.querySelector('.video-player__container') || document.querySelector('.player-core-container') || document.body;
+            let container = getContainer();
 
             const isPC=matchMedia('(pointer:fine)').matches;
             let myDevice=isPC?'PC':'TAB';
@@ -123,11 +124,11 @@
             const restoreBtn=document.createElement('div');
             restoreBtn.id='twj-restore';
             restoreBtn.innerHTML='T';
-            restoreBtn.style='position:fixed;top:5px;left:5px;z-index:2147483647;background:#9147ff;color:#fff;width:30px;height:30px;border-radius:50%;display:none;justify-content:center;align-items:center;cursor:pointer;font-weight:bold';
+            restoreBtn.style='position:absolute;top:5px;left:5px;z-index:2147483647;background:#9147ff;color:#fff;width:30px;height:30px;border-radius:50%;display:none;justify-content:center;align-items:center;cursor:pointer;font-weight:bold';
 
             const d=document.createElement('div');
             d.id='twj';
-            d.style='position:fixed;top:100px;left:10px;background:#18181b;padding:12px;border:2px solid #9147ff;border-radius:12px;width:260px;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;gap:10px;resize:both;max-width:95vw;max-height:85vh';
+            d.style='position:absolute;top:10%;left:5%;background:#18181b;padding:12px;border:2px solid #9147ff;border-radius:12px;width:260px;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;gap:10px;resize:both;max-width:95vw;max-height:85vh;z-index:2147483647';
 
             const pos=JSON.parse(localStorage.getItem(POS_KEY)||'null');
             if(pos){d.style.left=pos.left;d.style.top=pos.top;}
@@ -161,8 +162,9 @@
                 </div>
                 <div id="l" style="display:none;overflow-y:auto;background:#000;font-size:.8em;border:1px solid #333;max-height:300px"></div>
             `;
-            document.body.appendChild(d);
-            document.body.appendChild(restoreBtn);
+
+            container.appendChild(d);
+            container.appendChild(restoreBtn);
 
             const I=d.querySelector('#i');
             const L=d.querySelector('#l');
@@ -238,13 +240,11 @@
             d.querySelector('#mk10').onclick=()=>mk(10);
             d.querySelector('#min-mk').onclick=()=>mk(0);
             d.querySelector('#min-mk10').onclick=()=>mk(10);
-
             d.querySelector('#ls').onclick=()=>{
                 L.style.display=L.style.display==='none'?'block':'none';
                 T.style.display=T.style.display==='none'?'flex':'none';
                 window.render();
             };
-
             d.querySelector('#tab-pc').onclick=()=>{viewTab='PC';window.render();};
             d.querySelector('#tab-tab').onclick=()=>{viewTab='TAB';window.render();};
             d.querySelector('#txt').onclick=()=>{
@@ -262,26 +262,21 @@
                     location.reload();
                 }
             };
-
             d.querySelector('#x').onclick=()=>{
                 d.style.display='none';
                 restoreBtn.style.display='flex';
             };
-
             restoreBtn.onclick=()=>{
                 d.style.display='flex';
                 restoreBtn.style.display='none';
             };
-
             d.querySelector('#min').onclick=()=>{
                 const m=d.classList.toggle('minimized');
                 d.querySelector('#min').innerText=m?'+':'-';
                 d.querySelector('#min-controls').style.display=m?'flex':'none';
             };
 
-            // LOGIQUE DE DRAG UNIFIÉE (SOURIS + TACTILE)
             let drag=false,ox=0,oy=0;
-
             const startDrag = (e) => {
                 drag=true;
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -289,14 +284,23 @@
                 ox = clientX - d.offsetLeft;
                 oy = clientY - d.offsetTop;
             };
-
             const moveDrag = (e) => {
                 if(!drag) return;
-                if(e.touches) e.preventDefault(); // Empêche le scroll sur Android
+                if(e.touches) e.preventDefault();
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                d.style.left = (clientX - ox) + 'px';
-                d.style.top = (clientY - oy) + 'px';
+
+                let nx = clientX - ox;
+                let ny = clientY - oy;
+
+                // On maintient dans les limites du conteneur actuel
+                const cw = container.clientWidth;
+                const ch = container.clientHeight;
+                nx = Math.max(0, Math.min(nx, cw - d.offsetWidth));
+                ny = Math.max(0, Math.min(ny, ch - d.offsetHeight));
+
+                d.style.left = nx + 'px';
+                d.style.top = ny + 'px';
             };
 
             const stopDrag = () => {
@@ -308,7 +312,6 @@
                 }
                 drag=false;
             };
-
             const header = d.querySelector('#h');
             header.onmousedown = startDrag;
             header.addEventListener('touchstart', startDrag, {passive: false});
@@ -319,16 +322,34 @@
             window.addEventListener('mouseup', stopDrag);
             window.addEventListener('touchend', stopDrag);
 
+            // Gère la visibilité lors du redimensionnement et changement de mode
+            window.addEventListener('resize', () => {
+                const cw = container.clientWidth;
+                const ch = container.clientHeight;
+                let nx = parseInt(d.style.left);
+                let ny = parseInt(d.style.top);
+                d.style.left = Math.min(nx, cw - d.offsetWidth) + 'px';
+                d.style.top = Math.min(ny, ch - d.offsetHeight) + 'px';
+            });
+
             setInterval(()=>{
                 if(v() && !v().paused && document.activeElement!==I){
                     I.value=f(Math.floor(v().currentTime));
                 }
-            },1000);
 
+                // Sécurité cruciale : si le conteneur change (Switch Plein Écran / Normal), on ré-attache
+                const currentContainer = getContainer();
+                if (currentContainer && !currentContainer.contains(d) && d.style.display !== 'none') {
+                    currentContainer.appendChild(d);
+                    currentContainer.appendChild(restoreBtn);
+                }
+            },1000);
             window.render();
         }
 
         setTimeout(init,3000);
-        setInterval(()=>{if(!document.getElementById('twj')) init();},3000);
+        setInterval(()=>{
+            if(!document.getElementById('twj')) init();
+        },3000);
     })();
 })();
