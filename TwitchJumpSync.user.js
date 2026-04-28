@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Twitch Sync Multi-Device v1
 // @namespace    http://tampermonkey.net/
-// @version      3.4
-// @description  vv4 complet + config Firebase + mode local + clic molette + auto sélection HH/MM/SS + Fix Android Drag + Visibility & Ratio Fix
+// @version      3.7
+// @description  vv4 complet + config Firebase + mode local + clic molette + auto sélection HH/MM/SS + Fix Android Drag + Visibility & Ratio Fix + Custom TXT Export + Deep Link Logic + No New Tab on Click
 // @author       User
 // @match        https://www.twitch.tv/*
 // @match        https://m.twitch.tv/*
@@ -162,7 +162,7 @@
                 </div>
                 <div id="l" style="display:none;overflow-y:auto;background:#000;font-size:.8em;border:1px solid #333;max-height:300px"></div>
             `;
-
+            
             container.appendChild(d);
             container.appendChild(restoreBtn);
 
@@ -184,26 +184,40 @@
                 const filtered=sV.filter(x=>(x.dev===viewTab||(!x.dev&&viewTab==='PC')));
 
                 filtered.slice().reverse().forEach(item=>{
-                    const fullUrl=window.location.origin+window.location.pathname+'?t='+item.t+'s';
                     const row=document.createElement('div');
                     row.style='display:flex;justify-content:space-between;padding:6px;border-bottom:1px solid #222;align-items:center';
+                    
+                    const label = item.ch ? `[${item.ch}] ${item.n}` : item.n;
+                    const fullUrl = `${item.url}?t=${item.t}s`;
+                    
                     row.innerHTML=`
-                        <a class="jump" href="${fullUrl}" target="_blank" style="color:#9147ff;flex:1">${item.n}</a>
-                        <button class="ed-btn" style="background:#4caf50;color:#fff;border:none;padding:3px 6px;font-size:9px">EDIT</button>
-                        <button class="de-btn" style="background:#f44;color:#fff;border:none;padding:3px 6px;font-size:9px">DEL</button>
+                        <a class="jump" href="${fullUrl}" style="color:#9147ff;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${label}">${label}</a>
+                        <button class="ed-btn" style="background:#4caf50;color:#fff;border:none;padding:3px 6px;font-size:9px;margin-left:5px">EDIT</button>
+                        <button class="de-btn" style="background:#f44;color:#fff;border:none;padding:3px 6px;font-size:9px;margin-left:5px">DEL</button>
                     `;
+                    
                     const jump=row.querySelector('.jump');
+                    
                     jump.onclick=(e)=>{
-                        if(e.button!==0) return;
-                        e.preventDefault();
-                        if(v()) v().currentTime=item.t;
-                    };
-                    jump.onauxclick=(e)=>{
-                        if(e.button===1){
+                        // Clic gauche uniquement
+                        if(e.button === 0) {
                             e.preventDefault();
-                            window.open(fullUrl,'_blank','noopener,noreferrer');
+                            const currentPath = window.location.pathname;
+                            if (currentPath === item.path) {
+                                if(v()) v().currentTime = item.t;
+                            } else {
+                                window.location.href = fullUrl;
+                            }
                         }
                     };
+
+                    jump.onauxclick=(e)=>{
+                        // Clic molette (bouton milieu)
+                        if(e.button === 1) {
+                            // On laisse le comportement par défaut (ouverture nouvel onglet)
+                        }
+                    };
+
                     row.querySelector('.ed-btn').onclick=()=>{
                         let n=prompt('Nom:',item.n);
                         if(n){item.n=n;save();}
@@ -219,7 +233,17 @@
             function mk(offset){
                 if(!v()) return;
                 let t=Math.floor(Math.max(0,v().currentTime-offset));
-                sV.push({ n:f(t), t:t, dev:myDevice });
+                const ch = document.querySelector('.channel-info-content h1')?.innerText || 
+                           document.querySelector('.tw-title')?.innerText || "Twitch";
+                
+                sV.push({ 
+                    n: f(t), 
+                    t: t, 
+                    dev: myDevice,
+                    ch: ch, 
+                    path: window.location.pathname, 
+                    url: window.location.origin + window.location.pathname 
+                });
                 save();
                 T.style.display='flex';
                 L.style.display='block';
@@ -247,12 +271,20 @@
             };
             d.querySelector('#tab-pc').onclick=()=>{viewTab='PC';window.render();};
             d.querySelector('#tab-tab').onclick=()=>{viewTab='TAB';window.render();};
+            
             d.querySelector('#txt').onclick=()=>{
-                let content=sV.map(i=>`${i.n} | ${i.t}s`).join('\n');
+                const channelName = document.querySelector('.channel-info-content h1')?.innerText || 
+                                    document.querySelector('.tw-title')?.innerText || "Twitch_Channel";
+                
+                let content = sV.map(i => {
+                    const timestampUrl = `${i.url}?t=${i.t}s`;
+                    return `${i.ch || channelName} | ${i.n} | ${timestampUrl}`;
+                }).join('\n');
+
                 const blob=new Blob([content],{type:'text/plain'});
                 const a=document.createElement('a');
                 a.href=URL.createObjectURL(blob);
-                a.download='twitch_sync.txt';
+                a.download=`Twitch_Sync_Export.txt`;
                 a.click();
             };
 
@@ -286,14 +318,13 @@
             };
             const moveDrag = (e) => {
                 if(!drag) return;
-                if(e.touches) e.preventDefault();
+                if(e.touches) e.preventDefault(); 
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
+                
                 let nx = clientX - ox;
                 let ny = clientY - oy;
 
-                // On maintient dans les limites du conteneur actuel
                 const cw = container.clientWidth;
                 const ch = container.clientHeight;
                 nx = Math.max(0, Math.min(nx, cw - d.offsetWidth));
@@ -322,7 +353,6 @@
             window.addEventListener('mouseup', stopDrag);
             window.addEventListener('touchend', stopDrag);
 
-            // Gère la visibilité lors du redimensionnement et changement de mode
             window.addEventListener('resize', () => {
                 const cw = container.clientWidth;
                 const ch = container.clientHeight;
@@ -336,8 +366,7 @@
                 if(v() && !v().paused && document.activeElement!==I){
                     I.value=f(Math.floor(v().currentTime));
                 }
-
-                // Sécurité cruciale : si le conteneur change (Switch Plein Écran / Normal), on ré-attache
+                
                 const currentContainer = getContainer();
                 if (currentContainer && !currentContainer.contains(d) && d.style.display !== 'none') {
                     currentContainer.appendChild(d);
