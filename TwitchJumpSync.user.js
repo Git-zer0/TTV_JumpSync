@@ -37,8 +37,8 @@
             <input id="f_url" placeholder="Database URL" style="background:#000;color:#fff;border:1px solid #333;padding:10px;border-radius:4px" value="${firebaseConfig?.databaseURL||''}">
             <input id="f_pid" placeholder="Project ID" style="background:#000;color:#fff;border:1px solid #333;padding:10px;border-radius:4px" value="${firebaseConfig?.projectId||''}">
             <input id="f_aid" placeholder="App ID" style="background:#000;color:#fff;border:1px solid #333;padding:10px;border-radius:4px" value="${firebaseConfig?.appId||''}">
-            <button id="f_save" style="background:#9147ff;color:#fff;border:none;padding:12px;border-radius:6px;font-weight:bold;cursor:pointer">CONNEXION FIREBASE</button>
-            <button id="f_local" style="background:#222;color:#fff;border:1px solid #444;padding:12px;border-radius:6px;font-weight:bold;cursor:pointer">MODE HORS LIGNE</button>
+            <button id="f_save" style="background:#9147ff;color:#fff;border:none;padding:12px;border-radius:6px;font-weight:bold;cursor:pointer">FIREBASE CONNEXION</button>
+            <button id="f_local" style="background:#222;color:#fff;border:1px solid #444;padding:12px;border-radius:6px;font-weight:bold;cursor:pointer">OFFLINE MODE</button>
         `;
         document.body.appendChild(modal);
 
