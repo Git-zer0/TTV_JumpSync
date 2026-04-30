@@ -15,6 +15,8 @@ Jump to precise moments in VODs and save your favorite highlights with the MARK 
                                                                  - Quick Start Guide -
 
 
+https://youtu.be/cv82TBl5YTc
+
 # 🚀 Twitch Jump Sync
 
 ## 🧩 Install
