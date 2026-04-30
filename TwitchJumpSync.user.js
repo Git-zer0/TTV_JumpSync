@@ -123,7 +123,7 @@
             const d=document.createElement('div');
             d.id='twj';
             d.style='position:absolute;top:10%;left:5%;background:#18181b;padding:12px;border:2px solid #9147ff;border-radius:12px;width:260px;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;gap:10px;resize:both;z-index:2147483647';
-            
+
             const pos=JSON.parse(localStorage.getItem(POS_KEY)||'null');
             if(pos){d.style.left=pos.left;d.style.top=pos.top;}
             const size=JSON.parse(localStorage.getItem(SIZE_KEY)||'null');
@@ -147,7 +147,6 @@
             container.appendChild(d); container.appendChild(restoreBtn);
             const I=d.querySelector('#i'), L=d.querySelector('#l'), T=d.querySelector('#tabs');
 
-            // --- FONCTIONNALITÉ 1 : AUTO-SÉLECTION PAR BLOC (HH ou MM ou SS) ---
             const handleSelect = (e) => {
                 const pos = I.selectionStart;
                 if (pos >= 0 && pos <= 2) I.setSelectionRange(0, 2);
@@ -169,14 +168,22 @@
                     <button class="ed-btn" style="background:#4caf50;color:#fff;border:none;padding:3px 6px;font-size:9px;margin-left:5px">EDIT</button>
                     <button class="de-btn" style="background:#f44;color:#fff;border:none;padding:3px 6px;font-size:9px;margin-left:5px">DEL</button>`;
                     const jump=row.querySelector('.jump');
-                    jump.onmousedown=(e)=>{ if(e.button<=1){ e.preventDefault(); if(window.location.pathname===item.path && v()) v().currentTime=item.t; else window.location.href=`${item.url}?t=${item.t}s`; }};
+
+                    jump.onclick = (e) => {
+                        e.preventDefault();
+                        if (window.location.pathname === item.path && v()) {
+                            v().currentTime = item.t;
+                        } else {
+                            window.location.href = `${item.url}?t=${item.t}s`;
+                        }
+                    };
+
                     row.querySelector('.ed-btn').onclick=()=>{ let n=prompt('Nom:',item.n); if(n){item.n=n;save();} };
                     row.querySelector('.de-btn').onclick=()=>{ sV=sV.filter(i=>i!==item); save(); };
                     L.appendChild(row);
                 });
             };
 
-            // --- FONCTIONNALITÉ 2 : EXPORT TXT FORMATÉ ---
             d.querySelector('#txt').onclick = () => {
                 if (sV.length === 0) return alert("Liste vide");
                 const content = sV.map(item => {
@@ -200,6 +207,8 @@
 
             d.querySelector('#g').onclick=()=>{ let p=I.value.split(':').map(Number); if(v()&&p.length===3) v().currentTime=p[0]*3600+p[1]*60+p[2]; };
             d.querySelector('#m10').onclick=()=>{if(v())v().currentTime-=10;};
+            d.querySelector('#m5').onclick=()=>{if(v())v().currentTime-=5;}; // Ajouté
+            d.querySelector('#p5').onclick=()=>{if(v())v().currentTime+=5;}; // Ajouté
             d.querySelector('#p10').onclick=()=>{if(v())v().currentTime+=10;};
             d.querySelector('#mk').onclick=()=>mk(0);
             d.querySelector('#mk10').onclick=()=>mk(10);
